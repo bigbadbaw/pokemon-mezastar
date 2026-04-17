@@ -2,56 +2,35 @@
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "allow": [
-      "Bash(pnpm dev)",
-      "Bash(pnpm build)",
-      "Bash(pnpm lint)",
-      "Bash(pnpm lint:fix)",
-      "Bash(pnpm test *)",
-      "Bash(pnpm tsc --noEmit)",
-      "Bash(pnpm prettier *)",
-      "Bash(pnpm add *)",
-      "Bash(pnpm remove *)",
-      "Bash(git status)",
-      "Bash(git diff *)",
-      "Bash(git log *)",
-      "Bash(git add *)",
-      "Bash(git commit *)",
-      "Bash(git push *)",
-      "Bash(git checkout *)",
-      "Bash(git branch *)",
-      "Bash(git pull *)",
-      "Read(src/**)",
-      "Read(public/**)",
-      "Read(CLAUDE.md)",
-      "Read(package.json)",
-      "Read(tsconfig.json)",
-      "Read(tailwind.config.*)",
-      "Read(next.config.*)",
+      "Bash(*)",
+      "Read(*)",
       "Write(src/**)",
-      "Write(public/**)"
+      "Write(public/**)",
+      "Write(package.json)",
+      "Write(tsconfig.json)",
+      "Write(tailwind.config.*)",
+      "Write(next.config.*)",
+      "Write(postcss.config.*)",
+      "Write(.eslintrc.*)",
+      "Write(.prettierrc*)",
+      "Write(manifest.json)",
+      "Write(CLAUDE.md)",
+      "Write(.claude/**)",
+      "Write(.claudeignore)",
+      "Write(.gitignore)",
+      "Write(README.md)",
+      "Write(vitest.config.*)",
+      "Write(components.json)"
     ],
     "deny": [
       "Read(.env)",
       "Read(.env.*)",
-      "Read(.env.local)",
-      "Bash(rm -rf *)",
-      "Bash(curl *)",
-      "Bash(wget *)"
+      "Bash(rm -rf /)",
+      "Bash(rm -rf ~)",
+      "Bash(rm -rf /*)"
     ]
   },
   "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "file=\"$CLAUDE_FILE\"; ext=\"${file##*.}\"; if [ \"$ext\" = \"ts\" ] || [ \"$ext\" = \"tsx\" ]; then npx prettier --write \"$file\" 2>/dev/null; fi",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
     "PreCommit": [
       {
         "hooks": [
