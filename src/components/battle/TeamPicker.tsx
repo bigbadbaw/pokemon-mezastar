@@ -1,16 +1,23 @@
 "use client";
 
-import { type TeamRecommendation } from "@/lib/types";
+import { type MezaTag } from "@/lib/types";
+import { TagCard } from "@/components/inventory/TagCard";
 
 interface TeamPickerProps {
-  recommendations: TeamRecommendation[];
+  team: MezaTag[];
+  reasoning: string;
+  typeAdvantages: string[];
 }
 
-export function TeamPicker({ recommendations }: TeamPickerProps) {
-  if (recommendations.length === 0) {
+export function TeamPicker({
+  team,
+  reasoning,
+  typeAdvantages,
+}: TeamPickerProps) {
+  if (team.length === 0) {
     return (
       <p className="text-center text-gray-500">
-        Analyze a battle to see team recommendations
+        No team recommendation available
       </p>
     );
   }
@@ -18,44 +25,36 @@ export function TeamPicker({ recommendations }: TeamPickerProps) {
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400">
-        Recommended Teams
+        Recommended Team
       </h3>
-      {recommendations.map((rec, i) => (
-        <div
-          key={i}
-          className="rounded-xl border border-white/10 bg-[#1a1a2e] p-4"
-        >
-          <div className="mb-2 flex items-center justify-between">
-            <span className="font-bold">Team {i + 1}</span>
-            <span className="rounded-full bg-[#e94560]/20 px-3 py-1 text-xs font-semibold text-[#e94560]">
-              Score: {rec.overallScore}
-            </span>
-          </div>
-          <div className="mb-2 flex flex-wrap gap-2">
-            {rec.team.map((tag) => (
-              <span
-                key={tag.id}
-                className="rounded-lg bg-white/10 px-3 py-1 text-sm"
-              >
-                {tag.pokemonName}
-              </span>
-            ))}
-          </div>
-          <p className="text-sm text-gray-400">{rec.reasoning}</p>
-          {rec.typeAdvantages.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {rec.typeAdvantages.map((adv) => (
-                <span
-                  key={adv}
-                  className="rounded bg-green-500/20 px-2 py-0.5 text-xs text-green-400"
-                >
-                  {adv}
-                </span>
-              ))}
-            </div>
-          )}
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {team.map((tag) => (
+          <TagCard key={tag.id} tag={tag} />
+        ))}
+      </div>
+
+      {reasoning && (
+        <div className="rounded-xl border border-white/10 bg-[#1a1a2e] p-4">
+          <h4 className="mb-2 text-sm font-semibold text-gray-300">
+            Why this team?
+          </h4>
+          <p className="text-sm text-gray-400">{reasoning}</p>
         </div>
-      ))}
+      )}
+
+      {typeAdvantages.length > 0 && (
+        <div className="rounded-xl border border-white/10 bg-[#1a1a2e] p-4">
+          <h4 className="mb-2 text-sm font-semibold text-gray-300">
+            Type advantages
+          </h4>
+          <ul className="list-inside list-disc space-y-1 text-sm text-gray-400">
+            {typeAdvantages.map((adv, i) => (
+              <li key={i}>{adv}</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

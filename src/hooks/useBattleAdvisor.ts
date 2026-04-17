@@ -1,52 +1,82 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { type BattleAnalysis, type ApiResult } from "@/lib/types";
+import { type BattleOpponent, type MezaTag } from "@/lib/types";
+
+export interface BattleAdvice {
+  opponents: BattleOpponent[];
+  team: MezaTag[];
+  reasoning: string;
+  typeAdvantages: string[];
+}
+
+interface BattleAdviceApiResponse {
+  opponents: BattleOpponent[];
+  recommendedTeam: Array<string | number>;
+  reasoning: string;
+  typeAdvantages: string[];
+}
 
 interface UseBattleAdvisorReturn {
-  analysis: BattleAnalysis | null;
+  advice: BattleAdvice | null;
   isAnalyzing: boolean;
   error: string | null;
-  analyze: (imageData: string) => Promise<void>;
+  analyze: (imageData: string, inventory: MezaTag[]) => Promise<void>;
   reset: () => void;
 }
 
 export function useBattleAdvisor(): UseBattleAdvisorReturn {
-  const [analysis, setAnalysis] = useState<BattleAnalysis | null>(null);
+  const [advice, setAdvice] = useState<BattleAdvice | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const analyze = useCallback(async (imageData: string) => {
-    setIsAnalyzing(true);
-    setError(null);
-    setAnalysis(null);
+  const analyze = useCallback(
+    async (imageData: string, inventory: MezaTag[]) => {
+      setIsAnalyzing(true);
+      setError(null);
+      setAdvice(null);
 
-    try {
-      const response = await fetch("/api/battle-advice", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: imageData }),
-      });
+      try {
+        const response = await fetch("/api/battle-advice", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: imageData, inventory }),
+        });
 
-      const result: ApiResult<BattleAnalysis> = await response.json();
+        const data = await response.json();
 
-      if (result.error) {
-        setError(result.error);
-      } else if (result.data) {
-        setAnalysis(result.data);
+        if (!response.ok || data.error) {
+          setError(data.error ?? `Analysis failed (HTTP ${response.status})`);
+          return;
+        }
+
+        const payload = data as BattleAdviceApiResponse;
+        const team: MezaTag[] = payload.recommendedTeam
+          .map((id) =>
+            inventory.find((tag) => String(tag.id) === String(id)),
+          )
+          .filter((t): t is MezaTag => Boolean(t));
+
+        setAdvice({
+          opponents: payload.opponents,
+          team,
+          reasoning: payload.reasoning,
+          typeAdvantages: payload.typeAdvantages,
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Network error");
+      } finally {
+        setIsAnalyzing(false);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Analysis failed");
-    } finally {
-      setIsAnalyzing(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
   const reset = useCallback(() => {
-    setAnalysis(null);
+    setAdvice(null);
     setError(null);
     setIsAnalyzing(false);
   }, []);
 
-  return { analysis, isAnalyzing, error, analyze, reset };
+  return { advice, isAnalyzing, error, analyze, reset };
 }
