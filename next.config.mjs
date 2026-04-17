@@ -1,3 +1,4 @@
+// For iPad testing over LAN, run: npx next dev --experimental-https
 import withPWA from "next-pwa";
 
 const pwaConfig = withPWA({

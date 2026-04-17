@@ -19,20 +19,41 @@ export function useCamera(): UseCameraReturn {
   const [error, setError] = useState<string | null>(null);
 
   const start = useCallback(async () => {
+    setError(null);
+    let mediaStream: MediaStream | null = null;
+
     try {
-      setError(null);
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } },
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
       });
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
+    } catch {
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+        });
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to access camera",
+        );
+        setIsActive(false);
+        return;
       }
-      setStream(mediaStream);
-      setIsActive(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to access camera");
-      setIsActive(false);
     }
+
+    const video = videoRef.current;
+    if (video) {
+      video.setAttribute("playsinline", "true");
+      video.srcObject = mediaStream;
+      try {
+        await video.play();
+      } catch {
+        // Autoplay policies can reject play() even on muted video —
+        // safe to ignore; the stream is attached and will render.
+      }
+    }
+
+    setStream(mediaStream);
+    setIsActive(true);
   }, []);
 
   const stop = useCallback(() => {
