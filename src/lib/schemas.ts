@@ -38,7 +38,13 @@ export const scanResultSchema = z.object({
 const battleOpponentSchema = z.object({
   pokemonName: z.string().min(1),
   types: z.array(pokemonTypeSchema).max(2).default([]),
-  estimatedEnergy: z.coerce.number().int().positive(),
+  estimatedEnergy: z.coerce
+    .number()
+    .int()
+    .positive()
+    .nullable()
+    .optional()
+    .default(null),
 });
 
 export const battleAnalysisSchema = z.object({

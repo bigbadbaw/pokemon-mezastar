@@ -51,7 +51,7 @@ export interface ScanResult {
 export interface BattleOpponent {
   pokemonName: string;
   types: [PokemonType] | [PokemonType, PokemonType];
-  estimatedEnergy: number;
+  estimatedEnergy?: number | null;
 }
 
 export interface TeamRecommendation {

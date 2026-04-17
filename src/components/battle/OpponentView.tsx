@@ -28,9 +28,11 @@ export function OpponentView({ opponents }: OpponentViewProps) {
           >
             <p className="font-bold">{opp.pokemonName}</p>
             <p className="text-sm text-gray-400">{opp.types.join(" / ")}</p>
-            <p className="text-sm text-gray-400">
-              ~{opp.estimatedEnergy} Energy
-            </p>
+            {typeof opp.estimatedEnergy === "number" && (
+              <p className="text-sm text-gray-400">
+                ~{opp.estimatedEnergy} Energy
+              </p>
+            )}
           </div>
         ))}
       </div>
