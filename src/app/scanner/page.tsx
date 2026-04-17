@@ -113,6 +113,14 @@ export default function ScannerPage() {
 
   return (
     <div className="px-6 py-8">
+      <p className="p-2 font-mono text-xs text-yellow-400">
+        Protocol:{" "}
+        {typeof window !== "undefined" ? window.location.protocol : "unknown"}{" "}
+        | Host:{" "}
+        {typeof window !== "undefined" ? window.location.host : "unknown"} |
+        Camera: {camera.debugInfo}
+      </p>
+
       <header className="mb-6">
         <h1 className="text-3xl font-bold">Tag Scanner</h1>
         <p className="mt-2 text-gray-400">

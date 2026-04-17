@@ -40,3 +40,6 @@ next-env.d.ts
 /public/sw.js.map
 /public/workbox-*.js
 /public/workbox-*.js.map
+
+# local dev HTTPS proxy self-signed certs
+/certificates/

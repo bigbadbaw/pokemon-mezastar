@@ -7,6 +7,7 @@ interface UseCameraReturn {
   stream: MediaStream | null;
   isActive: boolean;
   error: string | null;
+  debugInfo: string;
   start: () => Promise<void>;
   stop: () => void;
   capture: () => string | null;
@@ -17,28 +18,51 @@ export function useCamera(): UseCameraReturn {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string>("Camera not started");
 
   const start = useCallback(async () => {
     setError(null);
+
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.mediaDevices ||
+      typeof navigator.mediaDevices.getUserMedia !== "function"
+    ) {
+      const msg =
+        "Camera requires HTTPS. Open this page using https:// on your iPad.";
+      setDebugInfo(msg);
+      setError(msg);
+      setIsActive(false);
+      return;
+    }
+
+    setDebugInfo("Requesting camera access...");
     let mediaStream: MediaStream | null = null;
 
     try {
       mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: "environment" } },
       });
-    } catch {
+    } catch (firstErr) {
+      const firstMsg =
+        firstErr instanceof Error ? firstErr.message : String(firstErr);
+      setDebugInfo(
+        `First attempt failed: ${firstMsg}, trying fallback...`,
+      );
       try {
         mediaStream = await navigator.mediaDevices.getUserMedia({
           video: true,
         });
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to access camera",
-        );
+        const msg = err instanceof Error ? err.message : String(err);
+        setDebugInfo(`Camera failed: ${msg}`);
+        setError(msg);
         setIsActive(false);
         return;
       }
     }
+
+    setDebugInfo("Camera stream acquired, attaching to video...");
 
     const video = videoRef.current;
     if (video) {
@@ -46,10 +70,13 @@ export function useCamera(): UseCameraReturn {
       video.srcObject = mediaStream;
       try {
         await video.play();
-      } catch {
-        // Autoplay policies can reject play() even on muted video —
-        // safe to ignore; the stream is attached and will render.
+        setDebugInfo("Camera active");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setDebugInfo(`Error: ${msg}`);
       }
+    } else {
+      setDebugInfo("Camera active");
     }
 
     setStream(mediaStream);
@@ -87,5 +114,14 @@ export function useCamera(): UseCameraReturn {
     };
   }, [stream]);
 
-  return { videoRef, stream, isActive, error, start, stop, capture };
+  return {
+    videoRef,
+    stream,
+    isActive,
+    error,
+    debugInfo,
+    start,
+    stop,
+    capture,
+  };
 }
