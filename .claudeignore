@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Environment files (secrets)
+.env
+.env.*
+.env.local
+
+# Build output
+.next/
+out/
+dist/
+
+# Lock files (too large, not useful for Claude)
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Test coverage
+coverage/
