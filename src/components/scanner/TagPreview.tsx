@@ -87,7 +87,7 @@ export function TagPreview({ result, onConfirm, onRetry }: TagPreviewProps) {
           </div>
         ) : (
           <p className="mt-2 rounded-lg border border-dashed border-white/10 bg-white/5 p-3 text-sm text-gray-400">
-            Scan the back of the tag to capture stats.
+            Scan the back of the tag to capture Mezastar stats.
           </p>
         )}
       </div>

@@ -2,37 +2,48 @@ import { NextResponse } from "next/server";
 import { visionScanSchema } from "@/lib/schemas";
 import { fetchPokemon } from "@/lib/pokeapi";
 
-const PROMPT = `You are looking at a Pokémon Mezastar tag — a stadium/oval-shaped plastic tile from an arcade game. The text is in Traditional Chinese (Taiwan version).
+const PROMPT = `You are analyzing a Pokémon Mezastar tag — a stadium/oval-shaped plastic tile from an arcade game. The text on this tag is in Traditional Chinese (繁體中文) from the Taiwan release.
 
-STEP 1: Find the Pokémon name.
-It is printed in large Traditional Chinese characters in the lower-left area of the tag, below the artwork. On this tag format it appears near a "Special" or grade label. Common examples:
-- 路卡利歐 = Lucario
-- 噴火龍 = Charizard
-- 甲賀忍蛙 = Greninja
-- 皮卡丘 = Pikachu
-READ THE CHINESE CHARACTERS. Do NOT guess from the artwork colors.
+YOUR #1 TASK: Read the Traditional Chinese text printed on the tag to identify the Pokémon name. Do NOT identify by artwork, colors, pose, or silhouette.
 
-STEP 2: Find the Energy value (寶可能量).
-Look for the label "寶可能量" with a number next to it, usually on the right side in a yellow/orange badge. This is the Energy value — typically a 2-4 digit number.
+WHERE TO FIND THE NAME:
+- The name is printed in large Chinese characters in the lower portion of the tag
+- It appears near or below a "Special" label (if present)
+- It is separate from any English text like "Pokemon" at the bottom edge
 
-STEP 3: Find the Grade.
-- If it says "Special ★" = Grade 5 (Star)
-- If it says "Special ★★" = Grade 6 (Superstar)
-- Diamond markings without "Special" = Grade 1-4
+COMMON NAMES (for reference only — always read what is actually printed):
+路卡利歐 = Lucario | 甲賀忍蛙 = Greninja | 噴火龍 = Charizard
+皮卡丘 = Pikachu | 烈咬陸鯊 = Garchomp | 夜伽洛加 = Darkrai
+水箭龜 = Blastoise | 妙蛙花 = Venusaur | 超夢 = Mewtwo
+固拉多 = Groudon | 蓋乘龍歐 = Kyogre | 烈空坐 = Rayquaza
+索爾迦雷歐 = Solgaleo | 露奈雅拉 = Lunala
 
-STEP 4: Find the Collection Number.
-A small code at the bottom edge, like "R-1-2 TC" or similar alphanumeric string.
+WHERE TO FIND ENERGY VALUE:
+- Look for "寶可能量" label with a number in a yellow/orange badge on the right side
+- Typically a 2-4 digit number (e.g. 102, 1620, 2800)
 
-Respond ONLY with valid JSON, no other text:
+WHERE TO FIND GRADE:
+- "Special ★" = Grade 5 (Star)
+- "Special ★★" = Grade 6 (Superstar)
+- Diamond markings without "Special" = Grade 1-4 (count the diamonds)
+
+WHERE TO FIND COLLECTION NUMBER:
+- Small alphanumeric code at the bottom edge of the tag (e.g. "R-1-2 TC")
+
+RULES:
+- You MUST read the actual Chinese characters printed on the tag
+- If the Chinese text says 路卡利歐, the answer is Lucario regardless of what the artwork looks like
+- If you cannot clearly read the Chinese characters, set confidence to 0.3 or lower
+- NEVER set confidence above 0.7 if you are identifying from artwork rather than text
+
+Respond with ONLY valid JSON, no other text before or after:
 {
-  "pokemonName": "English Pokemon name translated from Chinese",
-  "collectionNumber": "alphanumeric code like R-1-2 TC",
+  "pokemonName": "English name translated from the Chinese text on the tag",
+  "collectionNumber": "alphanumeric code from bottom edge",
   "energy": 102,
   "grade": 5,
   "confidence": 0.9
-}
-
-Do NOT include types, moves, or stats — those are looked up from a separate database using the Pokémon name.`;
+}`;
 
 interface AnthropicResponse {
   content?: Array<{ type: string; text?: string }>;
@@ -216,7 +227,7 @@ export async function POST(request: Request) {
       ...vision,
       types: pokeData?.types ?? [],
       moves: pokeData?.moves ?? [],
-      stats: pokeData?.stats ?? null,
+      stats: null,
       ...(pokeData?.imageUrl ? { imageUrl: pokeData.imageUrl } : {}),
     },
     confidence,
