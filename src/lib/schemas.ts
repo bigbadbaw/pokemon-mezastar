@@ -26,12 +26,12 @@ const tagStatsSchema = z.object({
 export const scanResultSchema = z.object({
   tag: z.object({
     pokemonName: z.string().default("Unknown"),
-    collectionNumber: z.string().min(1),
+    collectionNumber: z.string().default(""),
     energy: z.coerce.number().nullable().default(0),
     grade: mezaGradeSchema,
     types: z.array(z.string()).max(2).default([]),
-    moves: z.array(z.string().min(1)).default([]),
-    stats: tagStatsSchema,
+    moves: z.array(z.string()).default([]),
+    stats: tagStatsSchema.nullable().default(null),
     imageUrl: z.string().url().optional(),
   }),
   confidence: z.coerce.number().min(0).max(1),

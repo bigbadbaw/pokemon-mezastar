@@ -9,17 +9,19 @@ interface TagCardProps {
 }
 
 export function TagCard({ tag, onSelect }: TagCardProps) {
-  const totalStats = Object.values(tag.stats).reduce(
-    (sum, value) => sum + value,
-    0,
-  );
+  const totalStats = tag.stats
+    ? Object.values(tag.stats).reduce(
+        (sum, value) => sum + (value ?? 0),
+        0,
+      )
+    : null;
   const firstType = tag.types[0];
 
   return (
     <button
       onClick={() => onSelect?.(tag)}
       className="relative min-h-[44px] w-full overflow-hidden rounded-xl bg-gray-800/50 p-3 pl-4 text-left transition-colors hover:bg-gray-800/70"
-      aria-label={`${tag.pokemonName} tag, ${GRADE_LABELS[tag.grade]}, Energy ${tag.energy}, Total stats ${totalStats}`}
+      aria-label={`${tag.pokemonName} tag, ${GRADE_LABELS[tag.grade]}, Energy ${tag.energy}${totalStats !== null ? `, Total stats ${totalStats}` : ", stats not yet scanned"}`}
     >
       <div
         className={`absolute inset-y-0 left-0 w-1 ${TYPE_COLORS[firstType]}`}
@@ -47,7 +49,9 @@ export function TagCard({ tag, onSelect }: TagCardProps) {
       </div>
 
       <div className="flex items-center justify-between text-sm text-gray-400">
-        <span className="font-semibold">Total: {totalStats}</span>
+        <span className="font-semibold">
+          {totalStats !== null ? `Total: ${totalStats}` : "No stats yet"}
+        </span>
         <span>Energy {tag.energy}</span>
       </div>
     </button>

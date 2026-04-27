@@ -37,7 +37,7 @@ export interface MezaTag {
   grade: MezaGrade;
   types: [PokemonType] | [PokemonType, PokemonType];
   moves: string[];
-  stats: TagStats;
+  stats: TagStats | null;
   imageUrl?: string;
   scannedAt: Date;
 }

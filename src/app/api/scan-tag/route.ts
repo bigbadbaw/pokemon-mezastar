@@ -3,30 +3,48 @@ import { scanResultSchema } from "@/lib/schemas";
 import { POKEMON_TYPES } from "@/lib/constants";
 import { type PokemonType } from "@/lib/types";
 
-const PROMPT = `Analyze this Pokémon Mezastar tag photo and extract all visible information.
+const PROMPT = `You are looking at a Pokémon Mezastar tag — a stadium/oval-shaped plastic tile from an arcade game. The text is in Traditional Chinese (Taiwan version).
 
-Respond ONLY with valid JSON in this exact shape:
+STEP 1: Find the Pokémon name.
+It is printed in large Traditional Chinese characters in the lower-left area of the tag, below the artwork. On this tag format it appears near a "Special" or grade label. Common examples:
+- 路卡利歐 = Lucario
+- 噴火龍 = Charizard  
+- 甲賀忍蛙 = Greninja
+- 皮卡丘 = Pikachu
+READ THE CHINESE CHARACTERS. Do NOT guess from the artwork colors.
+
+STEP 2: Find the Energy value (寶可能量).
+Look for the label "寶可能量" with a number next to it, usually on the right side in a yellow/orange badge. This is the Energy value — typically a 2-4 digit number.
+
+STEP 3: Find the Grade.
+- If it says "Special ★" = Grade 5 (Star)
+- If it says "Special ★★" = Grade 6 (Superstar)  
+- Diamond markings without "Special" = Grade 1-4
+
+STEP 4: Find the Collection Number.
+A small code at the bottom edge, like "R-1-2 TC" or similar alphanumeric string.
+
+STEP 5: Find the Type(s).
+Small colored icons near the name or bottom of the tag. Fighting = fist, Fire = flame, Water = droplet, etc.
+
+STEP 6: If this is the BACK of the tag, read the stats grid:
+HP (yellow), Attack (red), Defense (red), Sp.Atk (blue), Sp.Def (blue), Speed (green).
+
+Respond ONLY with valid JSON, no other text:
 {
-  "pokemonName": "Pokemon name",
-  "collectionNumber": "collection number string (e.g. '025')",
-  "energy": 1000,
-  "grade": 3,
-  "types": ["type1", "type2"],
-  "moves": ["Move Name 1", "Move Name 2"],
-  "stats": {
-    "hp": 100,
-    "attack": 85,
-    "defense": 60,
-    "specialAttack": 95,
-    "specialDefense": 75,
-    "speed": 120
-  },
+  "pokemonName": "English Pokemon name translated from Chinese",
+  "collectionNumber": "alphanumeric code like R-1-2 TC",
+  "energy": 102,
+  "grade": 5,
+  "types": ["fighting"],
+  "moves": [],
+  "stats": null,
   "confidence": 0.9
 }
 
-Grades: 1-4 for normal tags (diamond markings), 5 for Star (★), 6 for Superstar (★★).
-Types: lowercase, one of the 18 Pokémon types (normal, fire, water, electric, grass, ice, fighting, poison, ground, flying, psychic, bug, rock, ghost, dragon, dark, steel, fairy). One or two types only.
-Confidence: 0-1 reflecting how clearly you can read the tag.`;
+Types must be lowercase: normal, fire, water, electric, grass, ice, fighting, poison, ground, flying, psychic, bug, rock, ghost, dragon, dark, steel, fairy.
+If stats are not visible (front side only), set stats to null.
+If moves are not visible, set moves to empty array.`;
 
 interface AnthropicResponse {
   content?: Array<{ type: string; text?: string }>;
@@ -123,10 +141,21 @@ export async function POST(request: Request) {
 
   console.log("scan-tag: raw API response:", text);
 
-  const cleaned = text
-    .replace(/^\s*```(?:json)?\s*/i, "")
-    .replace(/\s*```\s*$/, "")
-    .trim();
+  // Extract JSON even if the model added prose before/after it
+  let cleaned = text;
+  
+  // Try to find a JSON block in ```json ... ``` fences first
+  const fencedMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fencedMatch) {
+    cleaned = fencedMatch[1].trim();
+  } else {
+    // No fences — find the first { ... } block
+    const braceStart = text.indexOf("{");
+    const braceEnd = text.lastIndexOf("}");
+    if (braceStart !== -1 && braceEnd > braceStart) {
+      cleaned = text.slice(braceStart, braceEnd + 1).trim();
+    }
+  }
 
   let parsed: unknown;
   try {

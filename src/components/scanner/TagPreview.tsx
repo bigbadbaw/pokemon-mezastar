@@ -10,7 +10,7 @@ interface TagPreviewProps {
 }
 
 const STAT_LABELS: Array<{
-  key: keyof ScanResult["tag"]["stats"];
+  key: keyof NonNullable<ScanResult["tag"]["stats"]>;
   label: string;
   color: string;
 }> = [
@@ -24,6 +24,7 @@ const STAT_LABELS: Array<{
 
 export function TagPreview({ result, onConfirm, onRetry }: TagPreviewProps) {
   const { tag, confidence } = result;
+  const stats = tag.stats;
 
   return (
     <div className="rounded-2xl border border-white/10 bg-[#1a1a2e] p-6">
@@ -68,21 +69,27 @@ export function TagPreview({ result, onConfirm, onRetry }: TagPreviewProps) {
 
       <div className="mb-6">
         <span className="text-sm text-gray-400">Stats</span>
-        <div className="mt-2 grid grid-cols-3 gap-2">
-          {STAT_LABELS.map(({ key, label, color }) => (
-            <div
-              key={key}
-              className="rounded-lg bg-white/5 p-2 text-center"
-            >
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-                {label}
+        {stats ? (
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {STAT_LABELS.map(({ key, label, color }) => (
+              <div
+                key={key}
+                className="rounded-lg bg-white/5 p-2 text-center"
+              >
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                  {label}
+                </div>
+                <div className={`text-lg font-bold ${color}`}>
+                  {stats[key] ?? "—"}
+                </div>
               </div>
-              <div className={`text-lg font-bold ${color}`}>
-                {tag.stats[key]}
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-2 rounded-lg border border-dashed border-white/10 bg-white/5 p-3 text-sm text-gray-400">
+            Scan the back of the tag to capture stats.
+          </p>
+        )}
       </div>
 
       <div className="flex gap-3">
