@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
-import { scanResultSchema } from "@/lib/schemas";
-import { POKEMON_TYPES } from "@/lib/constants";
-import { type PokemonType } from "@/lib/types";
+import { visionScanSchema } from "@/lib/schemas";
+import { fetchPokemon } from "@/lib/pokeapi";
 
 const PROMPT = `You are looking at a Pokémon Mezastar tag — a stadium/oval-shaped plastic tile from an arcade game. The text is in Traditional Chinese (Taiwan version).
 
 STEP 1: Find the Pokémon name.
 It is printed in large Traditional Chinese characters in the lower-left area of the tag, below the artwork. On this tag format it appears near a "Special" or grade label. Common examples:
 - 路卡利歐 = Lucario
-- 噴火龍 = Charizard  
+- 噴火龍 = Charizard
 - 甲賀忍蛙 = Greninja
 - 皮卡丘 = Pikachu
 READ THE CHINESE CHARACTERS. Do NOT guess from the artwork colors.
@@ -18,17 +17,11 @@ Look for the label "寶可能量" with a number next to it, usually on the right
 
 STEP 3: Find the Grade.
 - If it says "Special ★" = Grade 5 (Star)
-- If it says "Special ★★" = Grade 6 (Superstar)  
+- If it says "Special ★★" = Grade 6 (Superstar)
 - Diamond markings without "Special" = Grade 1-4
 
 STEP 4: Find the Collection Number.
 A small code at the bottom edge, like "R-1-2 TC" or similar alphanumeric string.
-
-STEP 5: Find the Type(s).
-Small colored icons near the name or bottom of the tag. Fighting = fist, Fire = flame, Water = droplet, etc.
-
-STEP 6: If this is the BACK of the tag, read the stats grid:
-HP (yellow), Attack (red), Defense (red), Sp.Atk (blue), Sp.Def (blue), Speed (green).
 
 Respond ONLY with valid JSON, no other text:
 {
@@ -36,15 +29,10 @@ Respond ONLY with valid JSON, no other text:
   "collectionNumber": "alphanumeric code like R-1-2 TC",
   "energy": 102,
   "grade": 5,
-  "types": ["fighting"],
-  "moves": [],
-  "stats": null,
   "confidence": 0.9
 }
 
-Types must be lowercase: normal, fire, water, electric, grass, ice, fighting, poison, ground, flying, psychic, bug, rock, ghost, dragon, dark, steel, fairy.
-If stats are not visible (front side only), set stats to null.
-If moves are not visible, set moves to empty array.`;
+Do NOT include types, moves, or stats — those are looked up from a separate database using the Pokémon name.`;
 
 interface AnthropicResponse {
   content?: Array<{ type: string; text?: string }>;
@@ -141,15 +129,11 @@ export async function POST(request: Request) {
 
   console.log("scan-tag: raw API response:", text);
 
-  // Extract JSON even if the model added prose before/after it
   let cleaned = text;
-  
-  // Try to find a JSON block in ```json ... ``` fences first
   const fencedMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
   if (fencedMatch) {
     cleaned = fencedMatch[1].trim();
   } else {
-    // No fences — find the first { ... } block
     const braceStart = text.indexOf("{");
     const braceEnd = text.lastIndexOf("}");
     if (braceStart !== -1 && braceEnd > braceStart) {
@@ -162,10 +146,7 @@ export async function POST(request: Request) {
     parsed = JSON.parse(cleaned);
   } catch {
     return NextResponse.json(
-      {
-        error: "Model did not return valid JSON",
-        raw: cleaned.slice(0, 500),
-      },
+      { error: "Model did not return valid JSON", raw: cleaned.slice(0, 500) },
       { status: 422 },
     );
   }
@@ -179,58 +160,72 @@ export async function POST(request: Request) {
 
   console.log("scan-tag: parsed JSON:", JSON.stringify(parsed, null, 2));
 
-  const { confidence: rawConfidence, ...tagFields } = parsed as Record<
+  const { confidence: rawConfidence, ...visionFields } = parsed as Record<
     string,
     unknown
   >;
 
-  const validated = scanResultSchema.safeParse({
-    tag: tagFields,
-    confidence: rawConfidence ?? 0.85,
-    rawResponse: text,
-  });
-
-  if (!validated.success) {
+  const visionValidated = visionScanSchema.safeParse(visionFields);
+  if (!visionValidated.success) {
     console.error(
-      "scan-tag: validation failed:",
-      JSON.stringify(validated.error.issues, null, 2),
+      "scan-tag: vision validation failed:",
+      JSON.stringify(visionValidated.error.issues, null, 2),
     );
     return NextResponse.json(
       {
         error: "Scan result validation failed",
-        issues: validated.error.issues,
+        issues: visionValidated.error.issues,
       },
       { status: 422 },
     );
   }
 
-  const result = validated.data;
-
-  const originalTypes = result.tag.types;
-  const hadUnknownType = originalTypes.some(
-    (t) => t.toLowerCase() === "unknown",
+  const vision = visionValidated.data;
+  const confidence = Math.max(
+    0,
+    Math.min(1, Number(rawConfidence ?? 0.85) || 0),
   );
-  const validTypes = originalTypes.filter((t): t is PokemonType =>
-    (POKEMON_TYPES as readonly string[]).includes(t),
-  );
-  result.tag.types = validTypes;
 
-  const name = result.tag.pokemonName;
+  const name = vision.pokemonName;
   const isLowConfidence =
-    result.confidence < 0.3 ||
+    confidence < 0.3 ||
     name === "Unable to determine" ||
     name === "Unknown" ||
-    hadUnknownType ||
-    validTypes.length === 0;
+    name.length === 0;
 
   if (isLowConfidence) {
     return NextResponse.json({
-      ...result,
+      tag: {
+        ...vision,
+        types: [],
+        moves: [],
+        stats: null,
+      },
+      confidence,
+      rawResponse: text,
       lowConfidence: true,
       message:
         "Could not clearly read the tag. Try again with better lighting and positioning.",
     });
   }
 
-  return NextResponse.json(result);
+  const pokeData = await fetchPokemon(name);
+
+  return NextResponse.json({
+    tag: {
+      ...vision,
+      types: pokeData?.types ?? [],
+      moves: pokeData?.moves ?? [],
+      stats: pokeData?.stats ?? null,
+      ...(pokeData?.imageUrl ? { imageUrl: pokeData.imageUrl } : {}),
+    },
+    confidence,
+    rawResponse: text,
+    ...(pokeData
+      ? {}
+      : {
+          pokeApiMissing: true,
+          message: `Could not find "${name}" in PokeAPI. Saved without canonical data.`,
+        }),
+  });
 }

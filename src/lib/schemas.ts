@@ -23,6 +23,13 @@ const tagStatsSchema = z.object({
   speed: z.coerce.number().nullable().default(0),
 });
 
+export const visionScanSchema = z.object({
+  pokemonName: z.string().default("Unknown"),
+  collectionNumber: z.string().default(""),
+  energy: z.coerce.number().nullable().default(0),
+  grade: mezaGradeSchema,
+});
+
 export const scanResultSchema = z.object({
   tag: z.object({
     pokemonName: z.string().default("Unknown"),

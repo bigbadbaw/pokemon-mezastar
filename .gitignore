@@ -43,3 +43,6 @@ next-env.d.ts
 
 # local dev HTTPS proxy self-signed certs
 /certificates/
+
+# server-side PokeAPI lookup cache
+/data/pokeapi-cache.json
