@@ -6,27 +6,30 @@ const pokemonTypeSchema = z.enum([
   "rock", "ghost", "dragon", "dark", "steel", "fairy",
 ]);
 
-const mezaGradeSchema = z.union([
-  z.literal(1), z.literal(2), z.literal(3),
-  z.literal(4), z.literal(5), z.literal(6),
-]).default(1);
+const mezaGradeSchema = z
+  .union([
+    z.literal(1), z.literal(2), z.literal(3),
+    z.literal(4), z.literal(5), z.literal(6),
+  ])
+  .nullable()
+  .default(1);
 
 const tagStatsSchema = z.object({
-  hp: z.coerce.number().int().nonnegative().default(0),
-  attack: z.coerce.number().int().nonnegative().default(0),
-  defense: z.coerce.number().int().nonnegative().default(0),
-  specialAttack: z.coerce.number().int().nonnegative().default(0),
-  specialDefense: z.coerce.number().int().nonnegative().default(0),
-  speed: z.coerce.number().int().nonnegative().default(0),
+  hp: z.coerce.number().nullable().default(0),
+  attack: z.coerce.number().nullable().default(0),
+  defense: z.coerce.number().nullable().default(0),
+  specialAttack: z.coerce.number().nullable().default(0),
+  specialDefense: z.coerce.number().nullable().default(0),
+  speed: z.coerce.number().nullable().default(0),
 });
 
 export const scanResultSchema = z.object({
   tag: z.object({
-    pokemonName: z.string().min(1),
+    pokemonName: z.string().default("Unknown"),
     collectionNumber: z.string().min(1),
-    energy: z.coerce.number().int().positive(),
+    energy: z.coerce.number().nullable().default(0),
     grade: mezaGradeSchema,
-    types: z.array(pokemonTypeSchema).max(2).default([]),
+    types: z.array(z.string()).max(2).default([]),
     moves: z.array(z.string().min(1)).default([]),
     stats: tagStatsSchema,
     imageUrl: z.string().url().optional(),

@@ -8,7 +8,13 @@ import { CameraView } from "@/components/scanner/CameraView";
 import { TagPreview } from "@/components/scanner/TagPreview";
 import { type ScanResult, type MezaTag } from "@/lib/types";
 
-type ScanState = "camera" | "scanning" | "preview" | "error" | "success";
+type ScanState =
+  | "camera"
+  | "scanning"
+  | "preview"
+  | "error"
+  | "success"
+  | "lowConfidence";
 
 const MOCK_SCAN: ScanResult = {
   tag: {
@@ -37,6 +43,7 @@ export default function ScannerPage() {
   const [state, setState] = useState<ScanState>("camera");
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [lowConfidenceMsg, setLowConfidenceMsg] = useState<string | null>(null);
 
   const camera = useCamera();
   const { addTag } = useInventory();
@@ -58,6 +65,7 @@ export default function ScannerPage() {
   const resetToCamera = useCallback(() => {
     setScanResult(null);
     setErrorMsg(null);
+    setLowConfidenceMsg(null);
     setState("camera");
   }, []);
 
@@ -81,6 +89,14 @@ export default function ScannerPage() {
       if (!res.ok || data.error) {
         setErrorMsg(data.error ?? `Scan failed (HTTP ${res.status})`);
         setState("error");
+        return;
+      }
+
+      if (data.lowConfidence) {
+        setLowConfidenceMsg(
+          data.message ?? "Could not clearly read the tag.",
+        );
+        setState("lowConfidence");
         return;
       }
 
@@ -178,6 +194,27 @@ export default function ScannerPage() {
           onConfirm={handleSave}
           onRetry={resetToCamera}
         />
+      )}
+
+      {state === "lowConfidence" && (
+        <div
+          className="flex min-h-[40vh] flex-col items-center justify-center gap-4 text-center"
+          role="alert"
+        >
+          <AlertCircle size={48} className="text-yellow-400" aria-hidden />
+          <div>
+            <p className="text-lg font-semibold">Low-confidence scan</p>
+            {lowConfidenceMsg && (
+              <p className="mt-1 text-sm text-gray-400">{lowConfidenceMsg}</p>
+            )}
+          </div>
+          <button
+            onClick={resetToCamera}
+            className="min-h-[44px] rounded-xl bg-[#e94560] px-6 py-3 font-semibold text-white transition-colors hover:bg-[#d63d56]"
+          >
+            Try Again
+          </button>
+        </div>
       )}
 
       {state === "error" && (

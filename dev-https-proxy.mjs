@@ -17,7 +17,7 @@ if (!existsSync(keyPath) || !existsSync(certPath)) {
   );
 }
 
-const proxy = httpProxy.createProxyServer({ target: "http://localhost:3000", ws: true });
+const proxy = httpProxy.createProxyServer({ target: "http://localhost:3333", ws: true });
 
 const server = createServer(
   { key: readFileSync(keyPath), cert: readFileSync(certPath) },
@@ -26,7 +26,7 @@ const server = createServer(
 
 server.on("upgrade", (req, socket, head) => proxy.ws(req, socket, head));
 
-server.listen(3001, "0.0.0.0", () => {
-  console.log("\n✅ HTTPS proxy running at https://0.0.0.0:3001");
-  console.log("Open on iPad: https://<your-pc-ip>:3001\n");
+server.listen(3334, "0.0.0.0", () => {
+  console.log("\n✅ HTTPS proxy running at https://0.0.0.0:3334");
+  console.log("Open on iPad: https://<your-pc-ip>:3334\n");
 });

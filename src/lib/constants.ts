@@ -20,6 +20,12 @@ export const GRADE_COLORS: Record<MezaGrade, string> = {
   6: "bg-red-500",
 };
 
+export const POKEMON_TYPES: readonly PokemonType[] = [
+  "normal", "fire", "water", "electric", "grass", "ice",
+  "fighting", "poison", "ground", "flying", "psychic", "bug",
+  "rock", "ghost", "dragon", "dark", "steel", "fairy",
+] as const;
+
 export const TYPE_COLORS: Record<PokemonType, string> = {
   normal: "bg-gray-400",
   fire: "bg-orange-500",

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { scanResultSchema } from "@/lib/schemas";
+import { POKEMON_TYPES } from "@/lib/constants";
+import { type PokemonType } from "@/lib/types";
 
 const PROMPT = `Analyze this Pokémon Mezastar tag photo and extract all visible information.
 
@@ -119,6 +121,8 @@ export async function POST(request: Request) {
     );
   }
 
+  console.log("scan-tag: raw API response:", text);
+
   const cleaned = text
     .replace(/^\s*```(?:json)?\s*/i, "")
     .replace(/\s*```\s*$/, "")
@@ -144,6 +148,8 @@ export async function POST(request: Request) {
     );
   }
 
+  console.log("scan-tag: parsed JSON:", JSON.stringify(parsed, null, 2));
+
   const { confidence: rawConfidence, ...tagFields } = parsed as Record<
     string,
     unknown
@@ -156,6 +162,10 @@ export async function POST(request: Request) {
   });
 
   if (!validated.success) {
+    console.error(
+      "scan-tag: validation failed:",
+      JSON.stringify(validated.error.issues, null, 2),
+    );
     return NextResponse.json(
       {
         error: "Scan result validation failed",
@@ -165,5 +175,33 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json(validated.data);
+  const result = validated.data;
+
+  const originalTypes = result.tag.types;
+  const hadUnknownType = originalTypes.some(
+    (t) => t.toLowerCase() === "unknown",
+  );
+  const validTypes = originalTypes.filter((t): t is PokemonType =>
+    (POKEMON_TYPES as readonly string[]).includes(t),
+  );
+  result.tag.types = validTypes;
+
+  const name = result.tag.pokemonName;
+  const isLowConfidence =
+    result.confidence < 0.3 ||
+    name === "Unable to determine" ||
+    name === "Unknown" ||
+    hadUnknownType ||
+    validTypes.length === 0;
+
+  if (isLowConfidence) {
+    return NextResponse.json({
+      ...result,
+      lowConfidence: true,
+      message:
+        "Could not clearly read the tag. Try again with better lighting and positioning.",
+    });
+  }
+
+  return NextResponse.json(result);
 }
