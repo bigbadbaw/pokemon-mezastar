@@ -193,6 +193,7 @@ export default function ScannerPage() {
           result={scanResult}
           onConfirm={handleSave}
           onRetry={resetToCamera}
+          onUpdate={setScanResult}
         />
       )}
 

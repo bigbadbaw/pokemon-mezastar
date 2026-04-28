@@ -45,8 +45,65 @@ Respond with ONLY valid JSON, no other text before or after:
   "confidence": 0.9
 }`;
 
+const DEBUG_PROMPT = `What Traditional Chinese characters (繁體中文) are printed in the lower portion of this tag, near the Special label? Return ONLY the Chinese text, nothing else.`;
+
 interface AnthropicResponse {
   content?: Array<{ type: string; text?: string }>;
+}
+
+interface VisionCallResult {
+  text: string;
+  rawStatus: number;
+}
+
+async function callVision(
+  apiKey: string,
+  base64Data: string,
+  prompt: string,
+  maxTokens: number,
+): Promise<VisionCallResult> {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: maxTokens,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: "image/jpeg",
+                data: base64Data,
+              },
+            },
+            { type: "text", text: prompt },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const details = await response.text().catch(() => "");
+    throw new Error(
+      `Anthropic API returned ${response.status}: ${details.slice(0, 200)}`,
+    );
+  }
+
+  const data = (await response.json()) as AnthropicResponse;
+  const text = data.content?.[0]?.text;
+  if (typeof text !== "string") {
+    throw new Error("Unexpected Anthropic response shape");
+  }
+  return { text, rawStatus: response.status };
 }
 
 export async function POST(request: Request) {
@@ -78,66 +135,34 @@ export async function POST(request: Request) {
     ? (image.split(",")[1] ?? "")
     : image;
 
-  let apiResponse: Response;
-  try {
-    apiResponse = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1024,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: "image/jpeg",
-                  data: base64Data,
-                },
-              },
-              { type: "text", text: PROMPT },
-            ],
-          },
-        ],
-      }),
-    });
-  } catch (err) {
-    return NextResponse.json(
-      {
-        error:
-          err instanceof Error ? err.message : "Anthropic API request failed",
-      },
-      { status: 502 },
+  const [mainSettled, debugSettled] = await Promise.allSettled([
+    callVision(apiKey, base64Data, PROMPT, 1024),
+    callVision(apiKey, base64Data, DEBUG_PROMPT, 256),
+  ]);
+
+  if (debugSettled.status === "fulfilled") {
+    console.log(
+      "scan-tag: [DEBUG] Chinese text reading:",
+      debugSettled.value.text.trim(),
+    );
+  } else {
+    console.warn(
+      "scan-tag: [DEBUG] Chinese-text probe failed:",
+      debugSettled.reason instanceof Error
+        ? debugSettled.reason.message
+        : String(debugSettled.reason),
     );
   }
 
-  if (!apiResponse.ok) {
-    const details = await apiResponse.text().catch(() => "");
-    return NextResponse.json(
-      {
-        error: `Anthropic API returned ${apiResponse.status}`,
-        details: details.slice(0, 500),
-      },
-      { status: 502 },
-    );
+  if (mainSettled.status === "rejected") {
+    const message =
+      mainSettled.reason instanceof Error
+        ? mainSettled.reason.message
+        : "Anthropic API request failed";
+    return NextResponse.json({ error: message }, { status: 502 });
   }
 
-  const apiData = (await apiResponse.json()) as AnthropicResponse;
-  const text = apiData.content?.[0]?.text;
-  if (typeof text !== "string") {
-    return NextResponse.json(
-      { error: "Unexpected Anthropic response shape" },
-      { status: 502 },
-    );
-  }
-
+  const text = mainSettled.value.text;
   console.log("scan-tag: raw API response:", text);
 
   let cleaned = text;
